@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tìm kiếm nội dung trong nhiều file Word</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.7.2/mammoth.browser.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 24px;
+    color: #1f2937;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 20px; }
+
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+
+  .dropzone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 28px;
+    text-align: center;
+    color: #64748b;
+    cursor: pointer;
+    transition: 0.15s;
+    font-size: 14px;
+  }
+  .dropzone.drag { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+  .dropzone input { display: none; }
+
+  .filelist { margin-top: 14px; }
+  .fileitem {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+  }
+  .fileitem:last-child { border-bottom: none; }
+  .fname { display:flex; align-items:center; gap:8px; overflow:hidden;}
+  .fname span.n { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width: 480px;}
+  .status { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+  .status.ok { background:#dcfce7; color:#166534; }
+  .status.err { background:#fee2e2; color:#991b1b; }
+  .status.loading { background:#fef3c7; color:#92400e; }
+  .rm { color:#ef4444; cursor:pointer; font-size:12px; background:none; border:none; padding: 2px 6px;}
+  .clearall { font-size: 12px; color:#64748b; background:none; border:1px solid #e2e8f0; padding:5px 10px; border-radius:6px; cursor:pointer; }
+
+  .searchbar {
+    display: flex; gap: 10px; align-items:center;
+  }
+  .searchbar input[type=text] {
+    flex: 1;
+    padding: 11px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .searchbar input[type=text]:focus { outline: 2px solid #2563eb33; border-color:#2563eb; }
+  .opts { display:flex; gap:14px; margin-top:10px; font-size:12.5px; color:#4b5563; flex-wrap: wrap;}
+  .opts label { display:flex; align-items:center; gap:5px; cursor:pointer; }
+
+  .summary { font-size: 13px; color: #6b7280; margin: 14px 0 10px; }
+  .result-file {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .result-file-head {
+    background: #f8fafc;
+    padding: 10px 14px;
+    display:flex; justify-content:space-between; align-items:center;
+    cursor:pointer;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .result-file-head .count { color:#2563eb; font-weight:500; font-size:12.5px;}
+  .snippet {
+    padding: 10px 16px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    border-top: 1px solid #f1f5f9;
+    white-space: pre-wrap;
+  }
+  .snippet:hover { background:#fafafa; }
+  mark { background:#fde68a; padding:0 2px; border-radius:2px; }
+  .empty { color:#9ca3af; text-align:center; padding: 30px 0; font-size: 14px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔍 Tìm kiếm nội dung trong nhiều file Word</h1>
+  <div class="sub">Chạy 100% trên trình duyệt, không upload lên đâu cả. Hỗ trợ .docx</div>
+
+  <div class="card">
+    <div class="dropzone" id="dropzone">
+      📄 Kéo thả nhiều file .docx vào đây, hoặc bấm để chọn file
+      <input type="file" id="fileInput" multiple accept=".docx">
+    </div>
+    <div class="filelist" id="fileList"></div>
+    <div id="clearWrap" style="margin-top:10px; display:none; text-align:right;">
+      <button class="clearall" id="clearAll">Xoá tất cả file</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="searchbar">
+      <input type="text" id="searchInput" placeholder="Nhập từ khoá cần tìm...">
+    </div>
+    <div class="opts">
+      <label><input type="checkbox" id="caseSensitive"> Phân biệt hoa/thường</label>
+      <label><input type="checkbox" id="wholeWord"> Nguyên từ</label>
+      <label>Số ký tự ngữ cảnh:
+        <select id="ctxLen">
+          <option value="40">Ngắn</option>
+          <option value="80" selected>Vừa</option>
+          <option value="150">Dài</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="summary" id="summary">Chưa có kết quả tìm kiếm.</div>
+    <div id="results"></div>
+  </div>
+</div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const fileListEl = document.getElementById('fileList');
+const clearWrap = document.getElementById('clearWrap');
+const clearAllBtn = document.getElementById('clearAll');
+const searchInput = document.getElementById('searchInput');
+const resultsEl = document.getElementById('results');
+const summaryEl = document.getElementById('summary');
+const caseSensitiveEl = document.getElementById('caseSensitive');
+const wholeWordEl = document.getElementById('wholeWord');
+const ctxLenEl = document.getElementById('ctxLen');
+
+// docs = [{id, name, text, status: 'loading'|'ok'|'err', error}]
+let docs = [];
+let idCounter = 0;
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', e => {
+  handleFiles(e.target.files);
+  fileInput.value = '';
+});
+
+function handleFiles(fileArr) {
+  const files = Array.from(fileArr).filter(f => f.name.toLowerCase().endsWith('.docx'));
+  if (files.length === 0) return;
+  files.forEach(f => {
+    const id = ++idCounter;
+    const doc = { id, name: f.name, text: '', status: 'loading', error: '' };
+    docs.push(doc);
+    renderFileList();
+    f.arrayBuffer().then(buf => {
+      return mammoth.extractRawText({ arrayBuffer: buf });
+    }).then(result => {
+      doc.text = result.value || '';
+      doc.status = 'ok';
+      renderFileList();
+      runSearch();
+    }).catch(err => {
+      doc.status = 'err';
+      doc.error = err.message || 'Lỗi đọc file';
+      renderFileList();
+    });
+  });
+}
+
+function removeDoc(id) {
+  docs = docs.filter(d => d.id !== id);
+  renderFileList();
+  runSearch();
+}
+
+clearAllBtn.addEventListener('click', () => {
+  docs = [];
+  renderFileList();
+  runSearch();
+});
+
+function renderFileList() {
+  fileListEl.innerHTML = '';
+  clearWrap.style.display = docs.length ? 'block' : 'none';
+  docs.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'fileitem';
+    const statusHtml = d.status === 'loading'
+      ? '<span class="status loading">Đang đọc...</span>'
+      : d.status === 'ok'
+        ? `<span class="status ok">${d.text.length.toLocaleString()} ký tự</span>`
+        : `<span class="status err" title="${escapeHtml(d.error)}">Lỗi</span>`;
+    row.innerHTML = `
+      <div class="fname">📄 <span class="n" title="${escapeHtml(d.name)}">${escapeHtml(d.name)}</span></div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        ${statusHtml}
+        <button class="rm" data-id="${d.id}">Xoá</button>
+      </div>`;
+    fileListEl.appendChild(row);
+  });
+  fileListEl.querySelectorAll('.rm').forEach(btn => {
+    btn.addEventListener('click', () => removeDoc(Number(btn.dataset.id)));
+  });
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+let searchTimer = null;
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runSearch, 150);
+});
+caseSensitiveEl.addEventListener('change', runSearch);
+wholeWordEl.addEventListener('change', runSearch);
+ctxLenEl.addEventListener('change', runSearch);
+
+function runSearch() {
+  const q = searchInput.value.trim();
+  resultsEl.innerHTML = '';
+
+  if (!q) {
+    summaryEl.textContent = docs.length
+      ? `Đã nạp ${docs.length} file. Nhập từ khoá để tìm kiếm.`
+      : 'Chưa có file nào được nạp.';
+    return;
+  }
+
+  const flags = caseSensitiveEl.checked ? 'g' : 'gi';
+  let pattern = escapeRegex(q);
+  if (wholeWordEl.checked) pattern = `\\b${pattern}\\b`;
+  let re;
+  try {
+    re = new RegExp(pattern, flags);
+  } catch (e) {
+    summaryEl.textContent = 'Từ khoá không hợp lệ.';
+    return;
+  }
+
+  const ctxLen = Number(ctxLenEl.value);
+  let totalMatches = 0;
+  let filesWithMatch = 0;
+
+  const readyDocs = docs.filter(d => d.status === 'ok');
+
+  readyDocs.forEach(d => {
+    const text = d.text;
+    let m;
+    const matches = [];
+    re.lastIndex = 0;
+    while ((m = re.exec(text)) !== null) {
+      matches.push({ index: m.index, length: m[0].length });
+      if (m[0].length === 0) re.lastIndex++;
+    }
+    if (matches.length === 0) return;
+
+    filesWithMatch++;
+    totalMatches += matches.length;
+
+    const fileBlock = document.createElement('div');
+    fileBlock.className = 'result-file';
+    const head = document.createElement('div');
+    head.className = 'result-file-head';
+    head.innerHTML = `<span>📄 ${escapeHtml(d.name)}</span><span class="count">${matches.length} kết quả</span>`;
+    const body = document.createElement('div');
+    body.style.display = 'block';
+    head.addEventListener('click', () => {
+      body.style.display = body.style.display === 'none' ? 'block' : 'none';
+    });
+
+    matches.slice(0, 200).forEach(mt => {
+      const start = Math.max(0, mt.index - ctxLen);
+      const end = Math.min(text.length, mt.index + mt.length + ctxLen);
+      let before = text.slice(start, mt.index);
+      const matchText = text.slice(mt.index, mt.index + mt.length);
+      let after = text.slice(mt.index + mt.length, end);
+      if (start > 0) before = '…' + before;
+      if (end < text.length) after = after + '…';
+
+      const snip = document.createElement('div');
+      snip.className = 'snippet';
+      snip.innerHTML = `${escapeHtml(before)}<mark>${escapeHtml(matchText)}</mark>${escapeHtml(after)}`;
+      body.appendChild(snip);
+    });
+
+    if (matches.length > 200) {
+      const more = document.createElement('div');
+      more.className = 'snippet';
+      more.style.color = '#9ca3af';
+      more.textContent = `… và ${matches.length - 200} kết quả khác trong file này`;
+      body.appendChild(more);
+    }
+
+    fileBlock.appendChild(head);
+    fileBlock.appendChild(body);
+    resultsEl.appendChild(fileBlock);
+  });
+
+  if (filesWithMatch === 0) {
+    resultsEl.innerHTML = '<div class="empty">Không tìm thấy kết quả nào.</div>';
+  }
+
+  summaryEl.textContent = `Tìm thấy ${totalMatches} kết quả trong ${filesWithMatch}/${readyDocs.length} file.`;
+}
+</script>
+</body>
+</html>
