@@ -1,0 +1,116 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.wrap{display:flex;gap:0;padding:0;align-items:stretch;min-height:400px}
+.col{flex:1;padding:16px;min-width:0}
+.col-left{border-right:1px solid var(--color-border-tertiary)}
+h2{text-align:center;font-size:17px;font-weight:500;margin-bottom:14px;color:var(--color-text-primary)}
+label{font-weight:600;font-size:13px;color:var(--color-text-secondary);display:block;margin-bottom:4px}
+.field{margin-bottom:12px}
+input[type=text],textarea,.calc-input{
+  width:100%;padding:8px 10px;font-size:14px;
+  border:1.5px solid #888;
+  border-radius:var(--border-radius-md);
+  background:var(--color-background-primary);
+  color:var(--color-text-primary);
+  outline:none;
+  box-shadow:0 0 0 3px rgba(128,128,128,0.08);
+  transition:border-color 0.15s,box-shadow 0.15s;
+}
+input[type=text]:focus,textarea:focus,.calc-input:focus{
+  border-color:#1D9E75;
+  box-shadow:0 0 0 3px rgba(29,158,117,0.18);
+}
+textarea{resize:vertical;height:90px}
+.btn-copy{width:100%;padding:8px;font-size:14px;cursor:pointer;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-primary)}
+.btn-copy:hover{background:var(--color-background-tertiary)}
+.note-area{height:110px}
+.calc-input{
+  font-family:monospace;font-size:15px;
+  white-space:pre-wrap;word-break:break-all;
+  height:auto;min-height:40px;
+}
+.calc-hint{font-size:11px;color:var(--color-text-tertiary);margin-top:5px;margin-bottom:10px}
+.calc-history{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto}
+.calc-row{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:8px 10px}
+.calc-expr-txt{font-size:12px;color:var(--color-text-secondary);font-family:monospace;word-break:break-all}
+.calc-res{font-size:18px;font-weight:500;color:var(--color-text-primary);font-family:monospace;word-break:break-all}
+.calc-res.err{font-size:13px;color:var(--color-text-danger)}
+.clear-btn{margin-top:8px;font-size:12px;color:var(--color-text-secondary);cursor:pointer;background:none;border:none;padding:0;text-decoration:underline}
+.clear-btn:hover{color:var(--color-text-primary)}
+</style>
+<div class="wrap">
+  <div class="col col-left">
+    <h1 style="color: red;">Chuyển Số Tiền Thành Chữ - toanbx - v2.0</h1>
+    <div class="field">
+      <label>Số tiền:</label>
+      <input type="text" id="amount" placeholder="Nhập số tiền">
+    </div>
+    <div class="field">
+      <label>Số tiền bằng chữ:</label>
+      <textarea id="result" readonly></textarea>
+    </div>
+    <button class="btn-copy" onclick="copyText()">📋 Sao chép kết quả</button>
+    <div class="field" style="margin-top:12px">
+      <label>Ghi chú:</label>
+      <textarea id="note" class="note-area" placeholder="Nhập ghi chú tại đây..."></textarea>
+    </div>
+  </div>
+  <div class="col">
+    <h1 style="color: blue;">Máy tính</h1>
+    <div class="field">
+      <label>Biểu thức:</label>
+      <textarea class="calc-input" id="calcIn" placeholder="VD: 1.500.000 * 2 + 300.000" rows="2" style="height:auto;min-height:44px;resize:none" autocomplete="off" spellcheck="false"></textarea>
+      <div class="calc-hint">Nhập biểu thức rồi Enter</div>
+    </div>
+    <div class="calc-history" id="history"></div>
+    <button class="clear-btn" onclick="clearHistory()">Xóa lịch sử</button>
+  </div>
+</div>
+<script>
+const chuSo=["không","một","hai","ba","bốn","năm","sáu","bảy","tám","chín"];
+function docHangTram(n,full){let t=Math.floor(n/100),c=Math.floor((n%100)/10),d=n%10,s="";if(full||t>0){s+=chuSo[t]+" trăm";if(c===0&&d>0)s+=" lẻ"}if(c>1){s+=" "+chuSo[c]+" mươi";if(d===1)s+=" mốt";else if(d===5)s+=" lăm";else if(d>0)s+=" "+chuSo[d]}else if(c===1){s+=" mười";if(d===5)s+=" lăm";else if(d>0)s+=" "+chuSo[d]}else if(d>0)s+=" "+chuSo[d];return s.trim()}
+function numberToVietnamese(num){if(num===0)return"Không";const units=["","nghìn","triệu","tỷ","nghìn tỷ","triệu tỷ"];let blocks=[];while(num>0){blocks.push(num%1000);num=Math.floor(num/1000)}let result="";for(let i=blocks.length-1;i>=0;i--){let b=blocks[i];if(b===0)continue;let full=(i<blocks.length-1);result+=docHangTram(b,full)+(units[i]?" "+units[i]:"")+" "}result=result.trim();return result.charAt(0).toUpperCase()+result.slice(1)}
+function decimalToWords(d){if(!d)return"";return[...d].map(c=>chuSo[parseInt(c)]).join(" ")}
+const inp=document.getElementById("amount");
+const out=document.getElementById("result");
+inp.addEventListener("input",function(){let raw=this.value.replace(/[^\d,]/g,"");let parts=raw.split(",");let ip=parts[0].replace(/\./g,"");if(ip){ip=ip.replace(/^0+(?!$)/,"");let fmt=Number(ip||0).toLocaleString("vi-VN");this.value=fmt;if(parts.length>1){let dp=parts[1].replace(/[^\d]/g,"").substring(0,10);this.value+=","+dp}let text=numberToVietnamese(parseInt(ip||"0"));if(parts.length>1&&parts[1]!=="")text+=" phẩy "+decimalToWords(parts[1]);text+=" đồng";out.value=text}else{out.value=""}});
+function copyText(){const t=out.value;if(!t){alert("Chưa có nội dung để sao chép.");return}out.select();document.execCommand("copy");alert("Đã sao chép!")}
+const noteBox=document.getElementById("note");
+noteBox.value=localStorage.getItem("note_toanbx")||"";
+noteBox.addEventListener("input",function(){localStorage.setItem("note_toanbx",this.value)});
+
+const calcIn=document.getElementById("calcIn");
+const histEl=document.getElementById("history");
+
+calcIn.addEventListener("input",function(){
+  const sel=this.selectionStart,oldLen=this.value.length;
+  const formatted=this.value.replace(/(\d[\d.,]*)/g,function(m){
+    const digits=m.replace(/[.,]/g,"");
+    return parseInt(digits).toLocaleString("vi-VN");
+  });
+  this.value=formatted;
+  const diff=this.value.length-oldLen;
+  this.setSelectionRange(sel+diff,sel+diff);
+  this.style.height="auto";
+  this.style.height=this.scrollHeight+"px";
+});
+
+function fmtResult(v){if(!isFinite(v))return"Lỗi";return parseFloat(v.toPrecision(12)).toLocaleString("vi-VN",{maximumFractionDigits:6})}
+
+calcIn.addEventListener("keydown",function(e){
+  if(e.key!=="Enter"){return}
+  e.preventDefault();
+  const raw=this.value.trim();if(!raw)return;
+  let expr = raw.replace(/\./g,"").replace(/×/g,"*").replace(/÷/g,"/");
+  let result,isErr=false;
+  try{result=Function('"use strict";return ('+expr+')')();if(typeof result!=="number"||!isFinite(result)){isErr=true;result="Lỗi"}}
+  catch(err){isErr=true;result="Biểu thức không hợp lệ"}
+  const row=document.createElement("div");row.className="calc-row";
+  row.innerHTML=`<div class="calc-expr-txt">${raw}</div><div class="calc-res${isErr?" err":""}">${isErr?result:"= "+fmtResult(result)}</div>`;
+  histEl.prepend(row);
+  this.value="";
+  this.style.height="auto";
+});
+function clearHistory(){histEl.innerHTML=""}
+</script>
